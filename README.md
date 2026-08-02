@@ -1,270 +1,222 @@
-# PROYECTO NOVELLA
-<code> Proyecto de Datos 1 </code>
-***
+<div align="center">
+
+# Novella
+
+### Predicting *New York Times* bestsellers with machine learning
+
+![Course](https://img.shields.io/badge/course-Data%20Project%20I-blue?style=flat-square)
+![Academic Year](https://img.shields.io/badge/academic%20year-2023--2024-blue?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)
+
+Carmen Fernández González · Javier Martín Fuentes · María Romero Huertas
+
+</div>
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [Repository Structure](#repository-structure)
+4. [Installation](#installation)
+5. [Usage](#usage)
+6. [Dependencies](#dependencies)
+7. [Data Sources](#data-sources)
+8. [Results and Evaluation](#results-and-evaluation)
+9. [Future Work](#future-work)
+10. [Acknowledgments](#acknowledgments)
+
+## Project Overview
+
+The goal of this project is to build a machine learning system capable of predicting which books have the potential to become **bestsellers in the United States**. The system is trained on historical data about books that have appeared on the *New York Times* Best Sellers list, which is updated weekly.
+
+For more information about how this list is compiled, see [About the Best Sellers](https://www.nytimes.com/books/best-sellers/methodology/).
+
+The project follows a full data-science pipeline: web scraping data from multiple sources, cleaning and merging it into a single dataset, exploring it, engineering features, training and tuning several candidate models, and finally evaluating the selected model against newly captured data and a simple heuristic baseline.
+
+## Features
+
+- Web scraping of weekly *NYT* bestseller lists and monthly GoodReads "popular books" lists, with configurable start date and lookback window.
+- Collection of per-book metadata from GoodReads (rating, page count, genres, historical reviews, etc.).
+- Price scraping from Barnes & Noble.
+- Author metadata extraction from Wikipedia and GoodReads (nationality, years active, gender, social media presence, etc.).
+- Popularity signals over time via Google Trends.
+- Data cleaning pipeline: deduplication, null handling, feature engineering, date formatting, price imputation.
+- Exploratory data analysis notebooks for books, authors, and drift between training and newly captured data.
+- Feature-relevance analysis (Spearman correlation, mutual information, chi-squared test).
+- Hyperparameter tuning (grid search and randomized search, ~200 combinations each) for three candidate models: regularized Logistic Regression, Random Forest, and a Multi-Layer Perceptron (MLP), tracked with MLflow.
+- Candidate model comparison and selection based on held-out test performance.
+- Final model evaluation against a heuristic baseline, including segment-level analysis, on newly captured data.
+- Utility script to download intermediate datasets and model registries from Google Drive.
 
-### ▸ Índice
+## Repository Structure
 
-1. [Descripción del proyecto](#1-descripción-del-proyecto)
-2. [Integrantes](#2-integrantes)
-3. [Instrucciones de instalación](#3-instrucciones-de-instalación)
-   - [Clonación del repositorio](#clonación-del-repositorio)
-   - [Instalación de bibliotecas](#instalación-de-bibliotecas)
-   - [Ejecución del proyecto](#ejecución-del-proyecto)
-4. [Fuentes de datos](#4-fuentes-de-datos)
-5. [Estructura del código](#5-estructura-del-código)
-6. [Resultados y evaluación](#6-resultados-y-evaluación)
-7. [Trabajo futuro](#7-trabajo-futuro)
-8. [Agradecimientos](#8-agradecimientos)
-### 1. Descripción del proyecto
+```
+.
+├── requirements.txt
+└── src/
+    ├── adquisicion/        # Data acquisition (web scraping)
+    │   ├── librosNYT.py             # NYT bestseller list scraper
+    │   ├── librosPopulares.py       # GoodReads "popular books" scraper
+    │   ├── goodreads.py             # Per-book GoodReads metadata
+    │   ├── goodreadsReviews.py      # Historical GoodReads reviews (Playwright)
+    │   ├── barnesAndNoble.py        # Book price scraper
+    │   ├── autoresWikipedia.py      # Author info from Wikipedia
+    │   ├── autoresGoodreads.py      # Author info from GoodReads
+    │   ├── googleTrends.py          # Popularity over time (Google Trends)
+    │   ├── main_adquisicion_1.py    # Stage 1: NYT + popular book lists
+    │   ├── main_adquisicion_2.py    # Stage 2: enrichment from clean titles
+    │   └── main_nuevaCaptura_1.py   # Stage 1 equivalent for newly captured data
+    ├── limpieza/            # Data cleaning and feature engineering
+    │   ├── limpieza.py               # Book cleaning functions
+    │   ├── limpieza_autores.py       # Author cleaning functions
+    │   ├── main_limpieza_1.py        # Merge + clean raw book lists
+    │   ├── main_limpieza2.py         # Final book/author cleaning + integration
+    │   └── main_limpieza_autores_nuevaCaptura.py  # Author cleaning for new data
+    ├── exploracion/         # Exploratory data analysis notebooks
+    │   ├── exploracion.ipynb
+    │   ├── exploracion_autores.ipynb
+    │   └── exploracion_variables_relevantes.ipynb  # Drift analysis
+    ├── modelos/             # Feature analysis, training and tuning
+    │   ├── AnalisisVariablesRelevantes.ipynb
+    │   ├── evaluacionModelosCandidatos.ipynb
+    │   ├── utilidadesModelos.py      # Shared constants, metrics, pipeline, MLflow helpers
+    │   ├── regresionLogistica/
+    │   ├── RandomForest/
+    │   └── MLP/
+    ├── evaluacion/          # Final model evaluation
+    │   └── evaluacionModeloFinal.ipynb
+    └── drive/               # Google Drive dataset/model download helper
+        ├── drive.py
+        ├── descarga_archivos_GD.py
+        └── archivos_info.txt      # Google Drive file IDs and destinations
+```
 
-El objetivo de este proyecto es desarrollar un sistema de aprendizaje automático que sea capaz de predecir qué libros tienen el potencial de convertirse en *bestsellers* en Estados Unidos. Para ello, nos basaremos en los datos históricos de libros que aparecen en la lista de bestsellers del New York Times, la cual se actualiza semanalmente.
+No datasets are stored in this repository. Notebooks and scripts read/write data under `src/data/raw`, `src/data/clean` and `src/databases` (MLflow's SQLite backends), which are downloaded on demand via the `drive` module — see [Data Sources](#data-sources).
 
-Para más información sobre cómo se elabora esta lista, puedes consultar [About the Best Sellers](https://www.nytimes.com/books/best-sellers/methodology/).
+## Installation
 
+Clone the repository:
 
-### 2. Integrantes
+```bash
+git clone <repository-url>
+cd UCM_PD1
+```
 
-- Carmen Fernández González
-- Javier Martín Fuentes
-- María Romero Huertas
+Make sure you have Python installed (3.10 or higher is recommended). Then install the required libraries:
 
-### 3. Instrucciones de instalación
+```bash
+pip install -r requirements.txt
+```
 
-#### Clonación del repositorio
+You can work with the `.py` files in any editor/IDE (the original authors used PyCharm). The `.ipynb` notebooks require Jupyter:
 
-En primer lugar, clona el repositorio de este proyecto en tu dispositivo utilizando el comando 
+```bash
+jupyter notebook path/to/notebook.ipynb
+```
 
-<code>git clone [URL del repositorio] </code>
+Anaconda Navigator can also be used to launch Jupyter Notebook and open the notebooks from its interface.
 
- Si prefieres una interfaz gráfica, puedes apoyarte en aplicaciones como GitHub Desktop.
+## Usage
 
-#### Instalación de bibliotecas
+All commands below assume the working directory noted for each step — this mirrors how the scripts were originally written and executed.
 
-Asegúrate de tener instalado Python en tu dispositivo (preferiblemente con la versión 3.10 o superior). A continuación, instala las bibliotecas requeridas ejecutando el siguiente comando en la terminal, asegurándote de estar en el directorio raíz del proyecto:
+**1. Acquisition and cleaning**
 
-<code> pip install -r requirements.txt </code>
+Both the acquisition and cleaning stages have two "main" scripts each, since correctly obtaining the data requires alternating between them. The correct execution order is:
 
-#### Ejecución del proyecto
+- From `src/`: `python -m adquisicion.main_adquisicion_1` — downloads the NYT bestseller list and the list of popular GoodReads books.
+- From `src/adquisicion/`: `python goodreadsReviews.py` — downloads historical GoodReads reviews up to a chosen date. This is a separate module because it takes a long time to run; the rest of the pipeline can run in parallel since it's only integrated into the final dataset at the end.
+- From `src/`: `python -m limpieza.main_limpieza_1` — cleans titles, merges all books and removes duplicates.
+- From `src/`: `python -m adquisicion.main_adquisicion_2` — downloads further GoodReads info, prices, Google Trends data and author data (Wikipedia/GoodReads) based on the cleaned titles.
+- From `src/limpieza/`: `python main_limpieza2.py` — cleans the combined book and author dataset (nulls, new variables, date formatting, unnecessary columns removed) and integrates historical reviews, leaving the data ready for model training.
 
-Una vez instaladas las dependencias, puedes ejecutar el proyecto. 
+The same applies to the new-data-capture stage: in some cases the scripts above must be replaced with their `nuevaCaptura` counterparts, which target different time windows / more efficient capture methods.
 
-Para trabajar con estos archivos, puedes utilizar PyCharm. Simplemente abre PyCharm y carga el directorio del proyecto. Desde allí, puedes abrir y editar los archivos Python, ejecutarlos y depurarlos según sea necesario.
+**2. Exploration**
 
-Por otro lado, hay ciertas partes del proyecto para los que necesitarás tener Jupyter Notebook instalado. Ejecuta el servidor de Jupyter en el directorio del proyecto con el comando:
+Explore the data distributions with the notebooks in `src/exploracion/`: `exploracion.ipynb` and `exploracion_autores.ipynb`.
 
-<code> jupyter notebook [nombre].ipynb </code>
+**3. Model training**
 
-También puedes utilizar Anaconda Navigator para abrir los notebooks. Abre Anaconda Navigator y selecciona Jupyter Notebook desde el menú. Luego, navega hasta el directorio del proyecto y abre el archivo de notebook desde la interfaz de Jupyter Notebook para explorar y ejecutar el código.
+Before selecting candidate models, variable relevance with respect to the response variable was analyzed using metrics appropriate to each variable's type (Spearman correlation, mutual information, chi-squared test), discarding variables with no influence on the outcome — run `src/modelos/AnalisisVariablesRelevantes.ipynb`.
 
+Hyperparameters were tuned for three models: a regularized Logistic Regression, a Random Forest, and a Multi-Layer Perceptron. Each model has a notebook for variable selection (where applicable) and another for hyperparameter search, under `src/modelos/regresionLogistica/`, `src/modelos/RandomForest/` and `src/modelos/MLP/`. Two search strategies were used — grid and random search — with around 200 hyperparameter combinations tried per strategy.
 
-**F1. Adquisición y limpieza**
+Finally, the three models were evaluated on the same test set in `src/modelos/evaluacionModelosCandidatos.ipynb`, and the MLP was selected for its superior metrics. This notebook also performs a segment-level analysis and inspects the most relevant variables per model.
 
-Tanto la etapa de adquisición como la de limpieza disponen de dos *main* cada una, ya que para obtener correctamente nuestros datos es necesario ir alternándolas. Por este motivo, el orden correcto de ejecución es el siguiente:
+**4. New data capture**
 
-- <code> python main_adquisicion_1.py </code> - Descarga la lista de libros del NYT y de libros populares de GoodReads.
-- <code> python goodreadsReviews.py </code> - Descarga las reviews históricas hasta la fecha elegida de GoodReads. Va en un módulo aparte debido a que el tiempo de ejecución es muy alto. Se pueden ejecutar el resto de módulos mientras este funciona porque la integración con el dataset final se realiza al final de todo el proceso.
+The same acquisition/cleaning mains can be reused for capturing new data, substituting in the `nuevaCaptura`-suffixed mains where the time window or capture method differs, as in step 1.
 
-- <code> python main_limpieza_1.py </code> - Limpia los títulos, junta todos los libros y elimina duplicados.
+**5. Drift analysis**
 
-- <code> python main_adquisicion_2.py </code> - Descarga información a partir de los títulos limpios de GoodReads, precios, GoogleTrends y datos de los autores de Wikipedia y GoodReads.
+Drift in the new data can be analyzed with `src/exploracion/exploracion_variables_relevantes.ipynb`, which produces visualizations and runs statistical tests to check whether the distributions of key variables come from the same population in both datasets.
 
-- <code> python main_limpieza_2.py </code> - Limpia el conjunto de libros y autores. Incluye tratamiento de valores nulos, creación de nuevas variables, formatea las fechas, elimina variables innecesarias y deja los datos listos para el entrenamiento del modelo. Además, integra las reviews históricas con los datos ya procesados y limpios.
+**6. Model evaluation**
 
-Del mismo modo ocurre para la etapa de captura de datos nuevos, que en algunos casos hay que sustituir los mains anteriores por los que tienen el infijo *nueva_captura* ya que se ajustan a distintas ventanas temporales / métodos más eficientes para la captura.
+Finally, the selected candidate model can be evaluated ahead of production by comparing it against the heuristic baseline and running a segment-level analysis in `src/evaluacion/evaluacionModeloFinal.ipynb`.
 
-**F2. Exploración**
+## Dependencies
 
-A continuación puedes explorar las distribuciones de estos datos con los *notebooks* <code>exploracion.ipynb</code> y <code>exploracion_autores.ipynb</code>. 
+Main libraries and tools used across the pipeline (see `requirements.txt` for exact pinned versions):
 
-**F3. Entrenamiento de modelos**
+- **Data handling:** pandas, numpy, pyarrow, scipy
+- **Web scraping:** requests, BeautifulSoup4, Selenium, Playwright
+- **Text/entity matching:** fuzzywuzzy, python-Levenshtein, country_converter
+- **Trends data:** pytrends
+- **Machine learning:** scikit-learn, imbalanced-learn (SMOTE-NC)
+- **Experiment tracking:** MLflow
+- **Visualization:** seaborn
+- **Notebooks:** Jupyter
 
-Un paso previo a la selección de modelos candidatos fue realizar un análisis de la relevancia de las variables con respecto a la variable respuesta. Para ello se emplearon distintas métricas dependiendo de la naturaleza de las variables, como el coeficiente de correlación de Spearman, la información mutua o el test chi-2. De este modo pudimos descartar variables que no influían en la variable respuesta. Para ello, ejecuta <code>analisisVariablesRelevantes.ipynb</code>.
+## Data Sources
 
-Se ajustaron los hiperparámetros de tres modelos distintos: uno de regresión logística con regularización, un Random Forest y un perceptrón multicapa. Cada modelo tiene asociado un *notebook* para la selección de variables (si así lo requiere) y otro para la obtención de los hiperparámetros óptimos. Se emplearon dos estrategias de exploración: en rejilla y aleatoria. Se probaron en torno a 200 combinaciones de hiperparámetros por estrategia.
+- **[The New York Times Best Sellers](https://www.nytimes.com/books/best-sellers/)** — the list of books that became bestsellers in the United States.
+- **[GoodReads](https://www.goodreads.com)** — monthly lists of popular books by publication date, plus per-book details (publication date, rating, genres, etc.) and author information.
+- **[Wikipedia](https://es.wikipedia.org/wiki/Wikipedia:Portada)** — biographical author information (years active, gender, nationality, etc.).
+- **[Barnes & Noble](https://www.barnesandnoble.com)** — the largest US bookstore, used as the source for book prices.
+- **[Google Trends](https://trends.google.es/trends/)** — popularity measures for each book.
 
-Finalmente, se evaluaron los tres modelos con el mismo conjunto de prueba en `evaluacionModelosCandidatos.ipynb` y se eligió el perceptrón multicapa debido a sus métricas superiores. También se realiza el análisis por segmentos y la observación de las variables más relevantes de cada modelo.
+None of the collected/processed datasets are committed to this repository. `src/drive/archivos_info.txt` lists the Google Drive file IDs, local filenames and destination folders (`data/raw`, `data/clean`, `databases`) for every intermediate artifact; `src/drive/drive.py` and `src/drive/descarga_archivos_GD.py` download them on demand and are called directly from several notebooks.
 
-**F4. Captura de nuevos datos**
+## Results and Evaluation
 
-Para la captura de datos nuevos se pueden emplear los mismos mains que en la adquisición y limpieza anterior, solo que en algunos casos hay que sustituir los mains anteriores por los que tienen el infijo *nueva_captura* ya que se ajustan a distintas ventanas temporales / métodos más eficientes para la captura.
+After tuning hyperparameters for three different models with different search strategies, the **Multi-Layer Perceptron (MLP)** was selected to move on to production, with the following hyperparameters:
 
-**F5. Análisis de la deriva**
-
-Se puede realizar un análisis de la deriva de los nuevos datos con el *notebook*`exploracion_variables_relevantes.ipynb`. En este se crean visualizaciones y se emplean tests estadísticos para verificar si ambas distribuciones de ciertas variables relevantes provienen o no de la misma población.
-
-**F6. Evaluación del modelo**
-
-Finalmente, se puede evaluar el modelo candidato seleccionado para continuar a la fase de producción comparándolo con una heurística y realizar un análisis por segmentos ejecutando el *notebook* `evaluacionModeloFinal.ipynb`.
-
-### 4. Fuentes de datos
-
-- [The New York Times Best Sellers](https://www.nytimes.com/books/best-sellers/)
-
-Extraemos una lista con los libros que se han convertido en bestsellers en Estados Unidos.
-
-- [GoodReads](https://www.goodreads.com)
-
-Obtenemos una lista de libros populares por mes de publicación. Asimismo, recopilamos información específica de cada libro (fecha de publicación, rating, géneros literarios a los que pertenece, etc.) así como de los autores. 
-
-- [Wikipedia](https://es.wikipedia.org/wiki/Wikipedia:Portada)
-
-Empleamos esta fuente para extraer información acerca de los autores (años en activo, sexo, nacionalidad, etc.).
-
-- [Barnes&Noble](https://www.nytimes.com/books/best-sellers/)
-
-La mayor librería de Estados Unidos. De ella sacamos los precios de los libros.
-
-- [Google Trends](https://trends.google.es/trends/)
-
-De esta fuente obtenemos medidas de popularidad de los libros.
-
-### 5. Estructura del código
-
-Dentro de la carpera *src*, que incluye todo el código de nuestro proyecto, encontrarás una serie de carpetas que se corresponden con distintas las distintas etapas. A continuación procedemos a detallar los módulos de cada una de ellas:
-
-<code>**Carpeta _adquisicion_**</code>
-
-Corresponde a la adquisición de los datos de las distintas fuentes.
-
-- <code>librosNYT.py</code> - Recopila datos de los libros de la lista semanal de bestsellers del New York Times. Puedes especificarle el punto de partida (día, mes y año) y el número de semanas que quieres retroceder.
-- <code>librosPopulares.py</code> - Recoge la lista mensual de libros publicados populares de GoodReads. Del mismo modo, puedes especificarle el mes y año de partida así como el número de meses en los que retroceder. 
-- <code>goodreads.py</code> - Contiene funciones relacionadas con la adquisición de información específica de los libros en GoodReads.
-- <code>goodreadsReviews.py</code> - Recopila ratings antes de una fecha dada de un libro específico en GoodReads mediante técnicas de web crawling.
-- <code>barnesAndNoble.py</code> - Módulo que permite obtener el precio y su formato de un libro dado.
-- <code>autoresWikipedia.py</code> - Permite extraer información específica de un autor desde su página de Wikipedia.
-- <code>autoresGoodreads.py</code> - Permite extraer información específica de un autor desde su página de GoodReads.
-- <code>googleTrends.py</code> - Recopila el interés a lo largo del tiempo en un timeframe especificado para un libro dado.
-- <code>main_adquisicion_1.py</code> - Hace uso de los módulos *librosNYT* y *librosPopulares*.
-- <code>main_adquisicion_2.py</code> - Utiliza los módulos *goodreads*, *barnesAndNoble*, *googleTrends*, *autoresGoodreads* y *autoresWiki*.
-- `main_nuevaCaptura_1.py` - Hace uso de los módulos *librosNYT* y *librosPopulares* para recoger libros en fechas más recientes.
-
-<code>**Carpeta _limpieza_**</code>
-
-Contiene los módulos relacionados con la limpieza de los datos, su integración y la creación de nuevas variables.
-
-- <code>limpieza.py</code> - Contiene las funciones correspondientes a los libros para imputar los precios faltantes, seleccionar los de categoría 'Ficción', etc..
-- <code>limpieza_autores.py</code> - Contiene las funciones correspondientes a los autores para eliminar errores, añadir las columnas 'Country' y 'hasWikipedia', etc.
-- <code>main_limpieza_1.py</code> - Usa únicamente el módulo *limpieza* para limpiar los datos de los libros.
-- <code>main_limpieza_2.py</code> - Usa tanto el módulo de *limpieza* como el de *limpieza_autores*.
-- `main_limpieza_autores_nuevaCaptura.py` - Utiliza el módulo *limpieza_autores* para limpiar los datos de autores. Añade la columna 'HasWikipedia', selecciona las variables relevantes para el modelo final e incluye los datos de autores a los datos de libros.
-
-<code>**Carpeta _exploracion_**</code>
-
-Una vez completadas las dos etapas anteriores, se puede proceder a la exploración de los datos. Contiene:
-
-- <code>exploracion.ipynb</code> - Exploración de los datos relacionados con los libros.
-- <code>exploracion_autores.ipynb</code> - Exploración de los datos relacionados con los autores.
-- `exploracion_variables_relevantes.ipynb` - Análisis descriptivo de la variable respuesta y las variables más relevantes para el modelo elegido, comparando los datos de entrenamiento y los de nueva captura.
-
-<code>**Carpeta _drive_**</code>
-
-Cuenta con archivos relacionados con la descarga de los conjuntos de datos almacenados en Google Drive.
-
-<code>**Carpeta _modelos_**</code>
-
-- <code>analisisVariablesRelevantes.ipynb</code> - Contiene un análisis previo de variables relevantes (correlaciones, información mútua, test chi2).
-- `evaluacionModelosCandidatos.ipynb` - Contiene la evaluación de los modelos candidatos obtenidos de cada una de las carpetas del directorio. Carga y prepara los datos para entrenar los modelos creados con información de mlflow. Después aplica las distintas estrategias de análisis de rendimiento especificadas en el índice del cuaderno.
-- <code>utilidadesModelos.py</code> - Contiene funciones y métodos comunes a todos los modelos: constantes, métricas de evaluación, estrategia de validación, transformaciones, SMOTE-NC, creación del pipeline de entrenamiento, estrategias de búsqueda y la inicialización y registro de resultados en el entorno MLFlow.
-
-Cada carpeta de este directorio se corresponde con un modelo distinto y contiene dos jupyter notebooks: uno relacionado con la selección de variables (solo si es necesario) y otro que entrena los modelos y guarda los resultados en MLFlow. Los modelos entrenados son una regresión logística con regularización, un Random Forest y un perceptrón multicapa.
-
-<code>**Carpeta _evaluacion_**</code>
-- `evaluacionModeloFinal.ipynb` - Aplica el modelo seleccionado sobre el conjunto de datos nuevos y compara las métricas de rendimiento con los datos de entrenamiento y la heurística.
-
-### 6. Resultados y evaluación
-
-Tras realizar el ajuste de hiperparámetros de tres modelos distintos con distintas estrategias de exploración, decidimos que el modelo que continuase a la fase de producción fuese el **perceptrón multicapa (MLP)** con los siguientes hiperparámetros:
-
-- *activation* — 'logistic'
+- *activation* — `logistic`
 - *alpha* — 0.8773407884629941
-- *early_stopping* — True
+- *early_stopping* — `True`
 - *hidden_layer_sizes* — (150, 150)
-- *learning_rate* — 'adaptive'
+- *learning_rate* — `adaptive`
 - *learning_rate_init* — 0.0023019050769459534
 - *random_state* — 22
 
-Para la evaluación de este modelo, decidimos compararlo frente a la heurística que definimos como «serán bestsellers aquellos libros cuyos autores hayan tenido al menos uno bestseller previo». Los resultados de la evaluación con la totalidad del conjunto de datos de entrenamiento y el conjunto de datos nuevos es el siguiente:
+The model was evaluated against a heuristic baseline defined as: *"a book will be a bestseller if its author has had at least one previous bestseller."* Results on the full training dataset and on the newly captured dataset:
 
-<table>
-  <tr>
-    <th>Modelo</th>
-    <th>Datos</th>
-    <th>Balanced Accuracy</th>
-    <th>Sensibilidad</th>
-    <th>Especificidad</th>
-  </tr>
-  <tr>
-    <td rowspan="2">MLP</td>
-    <td>Prueba (train)</td>
-    <td>0.78</td>
-    <td>0.73</td>
-    <td>0.83</td>
-  </tr>
-  <tr>
-    <td>Nuevos</td>
-    <td>0.72</td>
-    <td>0.52</td>
-    <td>0.92</td>
-  </tr>
-  <tr>
-    <td rowspan="2">Heurística</td>
-    <td>Prueba (train)</td>
-    <td>0.63</td>
-    <td>0.29</td>
-    <td>0.97</td>
-  </tr>
-  <tr>
-    <td>Nuevos</td>
-    <td>0.73</td>
-    <td>0.50</td>
-    <td>0.97</td>
-  </tr>
-</table>
+| Model | Data | Balanced Accuracy | Sensitivity | Specificity |
+|---|---|---|---|---|
+| MLP | Test (train) | 0.78 | 0.73 | 0.83 |
+| MLP | New data | 0.72 | 0.52 | 0.92 |
+| Heuristic | Test (train) | 0.63 | 0.29 | 0.97 |
+| Heuristic | New data | 0.73 | 0.50 | 0.97 |
 
-Se puede observar que se observa una degradación de las métricas con el MLP en los datos nuevos mientras hay una mejora en las predicciones de la heurística. Esto se puede atribuir a varios factores, como cierto ruido añadido en la captura de los datos de GoogleTrends o los cambios en las distribución de los bestsellers previos que reflejó la prueba de Mann–Whitney U cuando realizamos el análisis de la deriva.
+The MLP's metrics degrade somewhat on the new data while the heuristic's predictions improve slightly. This can be attributed to several factors, such as noise introduced during Google Trends data capture, or shifts in the distribution of authors' previous bestsellers — confirmed by a Mann–Whitney U test performed during drift analysis.
 
-No obstante, descubrimos que en aquellos libros cuyos autores no habían tenido bestsellers previos nuestro modelo tenía cierto poder de predicción del cual la heurísica carecía completamente. Esto se puede observar en la siguiente tabla:
+However, for books whose authors had no previous bestsellers, the model showed real predictive power that the heuristic completely lacked (the heuristic can never predict a bestseller in this segment by construction):
 
-<table>
-  <tr>
-    <th>Modelo</th>
-    <th>Datos</th>
-    <th>Balanced Accuracy</th>
-    <th>Sensibilidad</th>
-    <th>Especificidad</th>
-  </tr>
-  <tr>
-    <td rowspan="2">MLP</td>
-    <td>Prueba (train) NB</td>
-    <td>0.75</td>
-    <td>0.65</td>
-    <td>0.84</td>
-  </tr>
-  <tr>
-    <td>Nuevos NB</td>
-    <td>0.58</td>
-    <td>0.22</td>
-    <td>0.93</td>
-  </tr>
-  <tr>
-    <td rowspan="2">Heurística</td>
-    <td>Prueba (train) NB</td>
-    <td>0.50</td>
-    <td>0</td>
-    <td>1</td>
-  </tr>
-  <tr>
-    <td>Nuevos NB</td>
-    <td>0.50</td>
-    <td>0</td>
-    <td>1</td>
-  </tr>
-</table>
+| Model | Data | Balanced Accuracy | Sensitivity | Specificity |
+|---|---|---|---|---|
+| MLP | Test (train), no previous bestsellers | 0.75 | 0.65 | 0.84 |
+| MLP | New data, no previous bestsellers | 0.58 | 0.22 | 0.93 |
+| Heuristic | Test (train), no previous bestsellers | 0.50 | 0 | 1 |
+| Heuristic | New data, no previous bestsellers | 0.50 | 0 | 1 |
 
-### 7. Trabajo futuro
+## Future Work
 
-En base a los resultados, se abre un nuevo enfoque para nuestro proyecto: construir un modelo especializado en aquellos libros cuyos autores no han tenido bestsellers previos. Esto es debido a  que es el sector donde las heurísticas convencionales no funcionan pero que sin embargo su predicción de potencial bestseller podría ofrecerle una gran ventaja a la empresa con respecto a la competencia.
+Based on these results, a new direction opens up for this project: building a model specialized in books whose authors have had no previous bestsellers. This is precisely the segment where conventional heuristics fail, yet where a good bestseller-potential prediction could offer a significant competitive advantage.
 
-### 8. Agradecimientos
+## Acknowledgments
 
-Queremos agradecer a Javier Arroyo por su supervisión de este proyecto. Sus detallados feedbacks y orientación constante han sido fundamentales para el desarrollo del mismo.
+We would like to thank Javier Arroyo for supervising this project. His detailed feedback and constant guidance were fundamental to its development.
