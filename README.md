@@ -1,6 +1,6 @@
 <div align="center">
 
-# Novella
+# DATA PROJECT | Novella
 
 ### Predicting *New York Times* bestsellers with machine learning
 
